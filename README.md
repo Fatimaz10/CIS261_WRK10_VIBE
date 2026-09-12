@@ -11,5 +11,6 @@ python VIBE.py
 ```
 
 The program stores each student's name, ID, three test scores, calculated
-average, and letter grade in `students.txt`. The menu supports adding students,
-updating scores, viewing records, and viewing class statistics.
+average, and letter grade in `student_grades.txt`. The menu supports adding
+students, updating scores, viewing records in a table, searching by name,
+and viewing class statistics. Press `ESC` to save and exit.

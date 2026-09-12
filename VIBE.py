@@ -4,7 +4,11 @@
 
 """Manage student records, test scores, averages, and letter grades."""
 
-STUDENT_FILE = "students.txt"
+STUDENT_FILE = "student_grades.txt"
+
+
+class ExitProgram(Exception):
+	"""Signal that the user selected Escape to exit."""
 
 
 class Student:
@@ -57,10 +61,18 @@ class Student:
 		return "|".join(values)
 
 
+def read_input(prompt):
+	"""Read input and exit when the Escape key is entered."""
+	value = input(prompt)
+	if value == "\x1b":
+		raise ExitProgram
+	return value.strip()
+
+
 def get_score(label):
 	while True:
 		try:
-			score = float(input(f"{label} (0-100): "))
+			score = float(read_input(f"{label} (0-100): "))
 			if 0 <= score <= 100:
 				return score
 		except ValueError:
@@ -100,8 +112,8 @@ def save_students(students):
 
 
 def add_student(students):
-	name = input("Student name: ").strip()
-	student_id = input("Student ID: ").strip()
+	name = read_input("Student name: ")
+	student_id = read_input("Student ID: ")
 	if not name or not student_id:
 		print("Student name and ID cannot be blank.")
 		return
@@ -120,13 +132,13 @@ def update_test_score(students):
 	if not students:
 		print("No students have been added yet.")
 		return
-	student_id = input("Student ID: ").strip()
+	student_id = read_input("Student ID: ")
 	if student_id not in students:
 		print("Student ID not found.")
 		return
 	while True:
 		try:
-			test_number = int(input("Test number to update (1, 2, or 3): "))
+			test_number = int(read_input("Test number to update (1, 2, or 3): "))
 			if test_number in {1, 2, 3}:
 				break
 		except ValueError:
@@ -140,8 +152,29 @@ def view_students(students):
 	if not students:
 		print("No students have been added yet.")
 		return
+	print("\n" + "=" * 92)
+	print(f"{'Name':<24} {'Student ID':<14} {'Test 1':>8} {'Test 2':>8} {'Test 3':>8} {'Average':>9} {'Grade':>7}")
+	print("-" * 92)
 	for student_id in sorted(students):
-		students[student_id].display()
+		student = students[student_id]
+		print(f"{student.name:<24.24} {student.student_id:<14.14} {student.scores[0]:>8.2f} {student.scores[1]:>8.2f} {student.scores[2]:>8.2f} {student.average():>9.2f} {student.grade():>7}")
+	print("=" * 92)
+
+
+def search_students(students):
+	if not students:
+		print("No students have been added yet.")
+		return
+	name = read_input("Enter student name to search: ").casefold()
+	matches = [student for student in students.values() if name in student.name.casefold()]
+	if not matches:
+		print("No matching students found.")
+		return
+	print("\nMatching students:")
+	print(f"{'Name':<24} {'Student ID':<14} {'Average':>9} {'Grade':>7}")
+	print("-" * 58)
+	for student in sorted(matches, key=lambda item: item.name.casefold()):
+		print(f"{student.name:<24.24} {student.student_id:<14.14} {student.average():>9.2f} {student.grade():>7}")
 
 
 def display_summary(students):
@@ -164,6 +197,7 @@ def main():
 		"2": update_test_score,
 		"3": view_students,
 		"4": display_summary,
+		"5": search_students,
 	}
 	while True:
 		print("\nStudent Record Manager")
@@ -171,19 +205,26 @@ def main():
 		print("2. Update test score")
 		print("3. View student records")
 		print("4. View class summary")
-		print("5. Exit")
-		choice = input("Choose an option: ").strip()
-		if choice == "5":
+		print("5. Search by student name")
+		print("Press ESC to exit")
+		try:
+			choice = read_input("Choose an option: ")
+		except ExitProgram:
 			save_students(students)
 			print("Goodbye!")
 			break
-		action = actions.get(choice)
-		if action is None:
-			print("Please choose an option from 1 to 5.")
-		else:
-			action(students)
-			if choice in {"1", "2"}:
-				save_students(students)
+		try:
+			action = actions.get(choice)
+			if action is None:
+				print("Please choose an option from 1 to 5.")
+			else:
+				action(students)
+				if choice in {"1", "2"}:
+					save_students(students)
+		except ExitProgram:
+			save_students(students)
+			print("Goodbye!")
+			break
 
 
 if __name__ == "__main__":
