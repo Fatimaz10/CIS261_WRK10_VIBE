@@ -2,25 +2,22 @@
 # CIS261
 # Wk10 VIBE Coding
 
-"""Manage student records, test scores, averages, and letter grades."""
+"""Manage student records, scores, averages, and letter grades."""
 
 STUDENT_FILE = "student_grades.txt"
 
 
 class ExitProgram(Exception):
-	"""Signal that the user selected Escape to exit."""
+	"""Signal that the user pressed Escape."""
 
 
 class Student:
-	"""Store one student's ID and three test scores."""
-
 	def __init__(self, name, student_id, scores):
 		self.name = name
 		self.student_id = student_id
 		self.scores = scores
 
 	def update_score(self, test_number, score):
-		"""Update one of the student's test scores."""
 		if test_number not in {1, 2, 3}:
 			raise ValueError("Test number must be 1, 2, or 3.")
 		if not 0 <= score <= 100:
@@ -42,27 +39,14 @@ class Student:
 			return "D"
 		return "F"
 
-	def display(self):
-		print(f"\nName: {self.name}")
-		print(f"Student ID: {self.student_id}")
-		for number, score in enumerate(self.scores, start=1):
-			print(f"Test {number}: {score:.2f}")
-		print(f"Average: {self.average():.2f}")
-		print(f"Letter grade: {self.grade()}")
-
 	def to_file_line(self):
-		values = [
-			self.name,
-			self.student_id,
-			*(f"{score:.2f}" for score in self.scores),
-			f"{self.average():.2f}",
-			self.grade(),
-		]
+		values = [self.name, self.student_id]
+		values.extend(f"{score:.2f}" for score in self.scores)
+		values.extend([f"{self.average():.2f}", self.grade()])
 		return "|".join(values)
 
 
 def read_input(prompt):
-	"""Read input and exit when the Escape key is entered."""
 	value = input(prompt)
 	if value == "\x1b":
 		raise ExitProgram
@@ -90,14 +74,19 @@ def load_students():
 					print(f"Skipped invalid record on line {line_number}.")
 					continue
 				name, student_id, test1, test2, test3, _, _ = fields
-				scores = [float(test1), float(test2), float(test3)]
+				try:
+					scores = [float(test1), float(test2), float(test3)]
+				except ValueError:
+					print(f"Skipped invalid record on line {line_number}.")
+					continue
 				if any(not 0 <= score <= 100 for score in scores):
-					raise ValueError
+					print(f"Skipped invalid record on line {line_number}.")
+					continue
 				students[student_id] = Student(name, student_id, scores)
 	except FileNotFoundError:
 		pass
-	except (OSError, ValueError):
-		print(f"Could not read {STUDENT_FILE}; invalid records were skipped.")
+	except OSError as error:
+		print(f"Could not read {STUDENT_FILE}: {error}")
 	return students
 
 
@@ -161,59 +150,44 @@ def view_students(students):
 	print("=" * 92)
 
 
-def search_students(students):
-	if not students:
-		print("No students have been added yet.")
-		return
-	name = read_input("Enter student name to search: ").casefold()
-	matches = [student for student in students.values() if name in student.name.casefold()]
-	if not matches:
-		print("No matching students found.")
-		return
-	print("\nMatching students:")
-	print(f"{'Name':<24} {'Student ID':<14} {'Average':>9} {'Grade':>7}")
-	print("-" * 58)
-	for student in sorted(matches, key=lambda item: item.name.casefold()):
-		print(f"{student.name:<24.24} {student.student_id:<14.14} {student.average():>9.2f} {student.grade():>7}")
-
-
 def display_summary(students):
 	if not students:
 		print("No students have been added yet.")
 		return
 	averages = [student.average() for student in students.values()]
 	print(f"\nClass average: {sum(averages) / len(averages):.2f}")
-	print(f"Students: {len(students)}")
 	print(f"Highest average: {max(averages):.2f}")
 	print(f"Lowest average: {min(averages):.2f}")
+
+
+def search_students(students):
+	if not students:
+		print("No students have been added yet.")
+		return
+	search_name = read_input("Enter student name to search: ").casefold()
+	matches = [student for student in students.values() if search_name in student.name.casefold()]
+	if not matches:
+		print("No matching students found.")
+		return
+	for student in sorted(matches, key=lambda item: item.name.casefold()):
+		print(f"{student.name} ({student.student_id}) - Average: {student.average():.2f}, Grade: {student.grade()}")
 
 
 def main():
 	students = load_students()
 	if students:
 		print(f"Loaded {len(students)} student record(s) from {STUDENT_FILE}.")
-	actions = {
-		"1": add_student,
-		"2": update_test_score,
-		"3": view_students,
-		"4": display_summary,
-		"5": search_students,
-	}
+	actions = {"1": add_student, "2": update_test_score, "3": view_students, "4": display_summary, "5": search_students}
 	while True:
 		print("\nStudent Record Manager")
 		print("1. Add student")
 		print("2. Update test score")
-		print("3. View student records")
-		print("4. View class summary")
+		print("3. Display all students")
+		print("4. Display class statistics")
 		print("5. Search by student name")
-		print("Press ESC to exit")
+		print("Press ESC to save and exit")
 		try:
 			choice = read_input("Choose an option: ")
-		except ExitProgram:
-			save_students(students)
-			print("Goodbye!")
-			break
-		try:
 			action = actions.get(choice)
 			if action is None:
 				print("Please choose an option from 1 to 5.")
@@ -221,7 +195,7 @@ def main():
 				action(students)
 				if choice in {"1", "2"}:
 					save_students(students)
-		except ExitProgram:
+		except (ExitProgram, EOFError):
 			save_students(students)
 			print("Goodbye!")
 			break
@@ -229,4 +203,3 @@ def main():
 
 if __name__ == "__main__":
 	main()
-
