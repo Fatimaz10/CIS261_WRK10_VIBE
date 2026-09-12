@@ -1,6 +1,6 @@
 # Fatima Ammour
 # CIS261
-# WK10 VIBE Coding
+# Wk10 VIBE Coding
 
 """Manage student records, test scores, averages, and letter grades."""
 
@@ -8,27 +8,25 @@ STUDENT_FILE = "students.txt"
 
 
 class Student:
-	"""Store one student's ID, three test scores, average, and grade."""
+	"""Store one student's ID and three test scores."""
 
-	def __init__(self, name, student_id, test1, test2, test3):
+	def __init__(self, name, student_id, scores):
 		self.name = name
 		self.student_id = student_id
-		self.scores = [test1, test2, test3]
+		self.scores = scores
 
 	def update_score(self, test_number, score):
-		"""Update one of the student's three test scores."""
-		if not 0 <= score <= 100:
-			raise ValueError("Score must be between 0 and 100.")
+		"""Update one of the student's test scores."""
 		if test_number not in {1, 2, 3}:
 			raise ValueError("Test number must be 1, 2, or 3.")
+		if not 0 <= score <= 100:
+			raise ValueError("Score must be between 0 and 100.")
 		self.scores[test_number - 1] = score
 
 	def average(self):
-		"""Return the student's average score."""
-		return sum(self.scores) / len(self.scores) if self.scores else 0
+		return sum(self.scores) / len(self.scores)
 
 	def grade(self):
-		"""Return the student's letter grade."""
 		average = self.average()
 		if average >= 90:
 			return "A"
@@ -41,17 +39,14 @@ class Student:
 		return "F"
 
 	def display(self):
-		"""Display the student's scores and calculated grade."""
 		print(f"\nName: {self.name}")
 		print(f"Student ID: {self.student_id}")
-		print(f"Test 1: {self.scores[0]:.2f}")
-		print(f"Test 2: {self.scores[1]:.2f}")
-		print(f"Test 3: {self.scores[2]:.2f}")
+		for number, score in enumerate(self.scores, start=1):
+			print(f"Test {number}: {score:.2f}")
 		print(f"Average: {self.average():.2f}")
 		print(f"Letter grade: {self.grade()}")
 
 	def to_file_line(self):
-		"""Return the student in the required pipe-delimited format."""
 		values = [
 			self.name,
 			self.student_id,
@@ -63,10 +58,9 @@ class Student:
 
 
 def get_score(label):
-	"""Prompt until the user enters a score from 0 through 100."""
 	while True:
 		try:
-			score = float(input(f"{label} (float, 0-100): "))
+			score = float(input(f"{label} (0-100): "))
 			if 0 <= score <= 100:
 				return score
 		except ValueError:
@@ -74,10 +68,7 @@ def get_score(label):
 		print("Please enter a number from 0 through 100.")
 
 
-
-
 def load_students():
-	"""Load student records from the pipe-delimited data file."""
 	students = {}
 	try:
 		with open(STUDENT_FILE, "r", encoding="utf-8") as file:
@@ -87,17 +78,18 @@ def load_students():
 					print(f"Skipped invalid record on line {line_number}.")
 					continue
 				name, student_id, test1, test2, test3, _, _ = fields
-				student = Student(name, student_id, float(test1), float(test2), float(test3))
-				students[student_id] = student
+				scores = [float(test1), float(test2), float(test3)]
+				if any(not 0 <= score <= 100 for score in scores):
+					raise ValueError
+				students[student_id] = Student(name, student_id, scores)
 	except FileNotFoundError:
 		pass
-	except (OSError, ValueError) as error:
-		print(f"Could not read {STUDENT_FILE}: {error}")
+	except (OSError, ValueError):
+		print(f"Could not read {STUDENT_FILE}; invalid records were skipped.")
 	return students
 
 
 def save_students(students):
-	"""Save all student records to the pipe-delimited data file."""
 	try:
 		with open(STUDENT_FILE, "w", encoding="utf-8") as file:
 			for student_id in sorted(students):
@@ -108,33 +100,27 @@ def save_students(students):
 
 
 def add_student(students):
-	"""Add a student with exactly three test scores."""
-	name = input("Student name (string): ").strip()
-	student_id = input("Student ID (string): ").strip()
-	if not name:
-		print("Student name cannot be blank.")
+	name = input("Student name: ").strip()
+	student_id = input("Student ID: ").strip()
+	if not name or not student_id:
+		print("Student name and ID cannot be blank.")
 		return
-	if not student_id:
-		print("Student ID cannot be blank.")
+	if "|" in name or "|" in student_id:
+		print("Student name and ID cannot contain '|'.")
 		return
 	if student_id in students:
 		print("That student ID already exists.")
 		return
-
-	test1 = get_score("Test 1")
-	test2 = get_score("Test 2")
-	test3 = get_score("Test 3")
-	students[student_id] = Student(name, student_id, test1, test2, test3)
+	scores = [get_score(f"Test {number}") for number in range(1, 4)]
+	students[student_id] = Student(name, student_id, scores)
 	print(f"Added {name}.")
 
 
-def add_test_score(students):
-	"""Add one test score to an existing student."""
+def update_test_score(students):
 	if not students:
 		print("No students have been added yet.")
 		return
-
-	student_id = input("Student ID (string): ").strip()
+	student_id = input("Student ID: ").strip()
 	if student_id not in students:
 		print("Student ID not found.")
 		return
@@ -151,7 +137,6 @@ def add_test_score(students):
 
 
 def view_students(students):
-	"""Display all student records."""
 	if not students:
 		print("No students have been added yet.")
 		return
@@ -160,43 +145,33 @@ def view_students(students):
 
 
 def display_summary(students):
-	"""Display class-level statistics."""
 	if not students:
 		print("No students have been added yet.")
 		return
-
 	averages = [student.average() for student in students.values()]
-	class_average = sum(averages) / len(averages)
-	print(f"\nClass average: {class_average:.2f}%")
+	print(f"\nClass average: {sum(averages) / len(averages):.2f}")
 	print(f"Students: {len(students)}")
-	print(f"Highest average: {max(averages):.2f}%")
-	print(f"Lowest average: {min(averages):.2f}%")
-
-
-def display_menu():
-	"""Display the available actions."""
-	print("\nStudent Record Manager")
-	print("1. Add student")
-	print("2. Update test score")
-	print("3. View student records")
-	print("4. View class summary")
-	print("5. Exit")
+	print(f"Highest average: {max(averages):.2f}")
+	print(f"Lowest average: {min(averages):.2f}")
 
 
 def main():
-	"""Run the student record manager."""
 	students = load_students()
 	if students:
 		print(f"Loaded {len(students)} student record(s) from {STUDENT_FILE}.")
 	actions = {
 		"1": add_student,
-		"2": add_test_score,
+		"2": update_test_score,
 		"3": view_students,
 		"4": display_summary,
 	}
-
 	while True:
-		display_menu()
+		print("\nStudent Record Manager")
+		print("1. Add student")
+		print("2. Update test score")
+		print("3. View student records")
+		print("4. View class summary")
+		print("5. Exit")
 		choice = input("Choose an option: ").strip()
 		if choice == "5":
 			save_students(students)
@@ -213,3 +188,4 @@ def main():
 
 if __name__ == "__main__":
 	main()
+
